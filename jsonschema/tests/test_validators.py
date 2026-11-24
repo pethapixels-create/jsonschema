@@ -513,6 +513,26 @@ class TestValidationErrorMessages(TestCase):
         )
         self.assertEqual(message, "3 is not a multiple of 2")
 
+    def test_multipleOf_integer_valued_float_divisor(self):
+        # An integer-valued float divisor (e.g. 11.0) must behave the same as
+        # the corresponding int (e.g. 11). Dividing by such a float can lose
+        # precision for large integers that are not exactly representable as
+        # floats, so exact integer arithmetic must be used instead.
+        # See https://github.com/python-jsonschema/jsonschema/issues/1159
+        instance = 9007199254740995
+        cls = validators._LATEST_VERSION
+
+        # The integer divisor validates successfully...
+        cls({"multipleOf": 11}).validate(instance)
+        # ...and so must the equivalent integer-valued float divisor.
+        cls({"multipleOf": 11.0}).validate(instance)
+
+        # A non-multiple must still fail for both forms.
+        non_multiple = 9007199254740996
+        for divisor in (11, 11.0):
+            with self.assertRaises(exceptions.ValidationError):
+                cls({"multipleOf": divisor}).validate(non_multiple)
+
     def test_minItems(self):
         message = self.message_for(instance=[], schema={"minItems": 2})
         self.assertEqual(message, "[] is too short")

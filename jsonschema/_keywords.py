@@ -172,21 +172,28 @@ def multipleOf(validator, dB, instance, schema):
         return
 
     if isinstance(dB, float):
-        quotient = instance / dB
-        try:
-            failed = int(quotient) != quotient
-        except OverflowError:
-            # When `instance` is large and `dB` is less than one,
-            # quotient can overflow to infinity; and then casting to int
-            # raises an error.
-            #
-            # In this case we fall back to Fraction logic, which is
-            # exact and cannot overflow.  The performance is also
-            # acceptable: we try the fast all-float option first, and
-            # we know that fraction(dB) can have at most a few hundred
-            # digits in each part.  The worst-case slowdown is therefore
-            # for already-slow enormous integers or Decimals.
-            failed = (Fraction(instance) / Fraction(dB)).denominator != 1
+        # An integer-valued float (e.g. 11.0) denotes the same mathematical
+        # number as the corresponding int (e.g. 11). Dividing by such a float
+        # can lose precision for large integers (the instance may not be
+        # representable as a float), so use exact integer arithmetic instead.
+        if dB.is_integer():
+            failed = instance % int(dB)
+        else:
+            quotient = instance / dB
+            try:
+                failed = int(quotient) != quotient
+            except OverflowError:
+                # When `instance` is large and `dB` is less than one,
+                # quotient can overflow to infinity; and then casting to int
+                # raises an error.
+                #
+                # In this case we fall back to Fraction logic, which is
+                # exact and cannot overflow.  The performance is also
+                # acceptable: we try the fast all-float option first, and
+                # we know that fraction(dB) can have at most a few hundred
+                # digits in each part.  The worst-case slowdown is therefore
+                # for already-slow enormous integers or Decimals.
+                failed = (Fraction(instance) / Fraction(dB)).denominator != 1
     else:
         failed = instance % dB
 
